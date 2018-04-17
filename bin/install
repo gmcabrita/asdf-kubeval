@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -e
+set -o pipefail
+
+install_kubeval() {
+    local version \
+        install_path \
+        bin_install_path \
+        binary_path \
+        binary_name \
+        tmp_download_dir \
+        download_url \
+        download_path;
+
+    version=$2;
+    install_path=$3;
+    bin_install_path="${install_path}/bin";
+    binary_name=$(get_binary_name);
+    binary_path="${bin_install_path}/${binary_name}";
+    download_url=$(get_download_url "${version}");
+
+    if [ "${TMPDIR}" = "" ]; then
+        tmp_download_dir=$(mktemp -d -t kubeval_XXXXXX);
+    else
+        tmp_download_dir="${TMPDIR}";
+    fi
+
+    download_path="${tmp_download_dir}/$(get_filename)";
+
+    echo "Downloading kubeval from ${download_url}";
+    curl -Lo "${download_path}" "${download_url}";
+
+    echo "Creating bin directory";
+    mkdir -p "${bin_install_path}";
+
+    echo "Cleaning previous binaries";
+    rm -f "${binary_path}" 2>/dev/null || true;
+
+    echo "Extracting tarball";
+    tar -xzf "${download_path}" -C "${tmp_download_dir}";
+
+    echo "Copying binary";
+    cp "${tmp_download_dir}/${binary_name}" "${binary_path}";
+    chmod +x "${binary_path}";
+}
+
+get_arch() {
+    uname | tr '[:upper:]' '[:lower:]';
+}
+
+get_binary_name() {
+    local platform;
+    platform="$(get_arch)";
+
+    if [[ "${platform}" == "windows" ]]; then
+        echo "kubeval.exe";
+    else
+        echo "kubeval";
+    fi
+}
+
+get_filename() {
+    local version \
+        platform;
+
+    version=$1;
+    platform="$(get_arch)";
+
+    echo "kubeval-${platform}-amd64.tar.gz";
+}
+
+get_download_url() {
+    local filename \
+        version;
+
+    version=$1;
+    filename=$(get_filename "${version}");
+
+    echo "https://github.com/garethr/kubeval/releases/download/${version}/${filename}";
+}
+
+install_kubeval "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH";

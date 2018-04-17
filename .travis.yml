@@ -1,0 +1,41 @@
+language: bash
+sudo: false
+os:
+  - linux
+  - osx
+matrix:
+  - fast_finish: true
+before_install:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew update;
+      brew install shellcheck;
+    fi
+install:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      wget "https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz";
+      tar --xz -xvf "shellcheck-stable.linux.x86_64.tar.xz";
+      shellcheck() { "shellcheck-stable/shellcheck" "$@"; };
+    fi
+  - shellcheck --version
+before_script:
+  - git clone https://github.com/asdf-vm/asdf.git
+  - . asdf/asdf.sh
+script:
+  - shellcheck bin/*
+  - asdf plugin-test kubeval .
+  - asdf plugin-add kubeval .
+  - asdf list-all kubeval
+  - latest_version=$(asdf list-all kubeval | tail -n1)
+  - asdf install kubeval "$latest_version"
+  - asdf global kubeval "$latest_version"
+  - kubeval --version
+after_success:
+  - wget https://raw.githubusercontent.com/k3rn31p4nic/travis-ci-discord-webhook/master/send.sh
+  - chmod +x send.sh
+  - ./send.sh success $WEBHOOK_URL
+after_failure:
+  - wget https://raw.githubusercontent.com/k3rn31p4nic/travis-ci-discord-webhook/master/send.sh
+  - chmod +x send.sh
+  - ./send.sh failure $WEBHOOK_URL
